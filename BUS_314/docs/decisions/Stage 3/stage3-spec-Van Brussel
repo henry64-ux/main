@@ -1,0 +1,201 @@
+# Accounting & Performance Ratio Model — Technical Specification
+## Caterpillar Inc. (NYSE: CAT) | FY2024
+
+**Created by:** Henry Van Brussel | **Date:** 2026-04-22 | **Version:** 1.0
+**Course:** BUS-314, Shidler College of Business
+
+---
+
+## 1. Problem Statement
+
+Caterpillar Inc. is the world's leading manufacturer of construction and mining equipment, diesel engines, and diesel-electric locomotives, operating across 190+ countries. This model analyzes CAT's FY2024 financial performance (fiscal year ended December 31, 2024) using audited data from the company's 10-K filing with the SEC. FY2023 balance sheet figures serve as prior-year comparators for denominator and average-balance calculations.
+
+The objective is to compute and interpret 30+ ratios across five categories — performance, profitability, efficiency, leverage, and liquidity — to assess value creation, asset efficiency, and financial risk. Results feed directly into the Stage 4 AI-assisted interpretation memo.
+
+---
+
+## 2. Inputs (Known Variables)
+
+### Balance Sheet
+
+| Source / Item | Named Range | FY2024 ($M) | FY2023 ($M) |
+|---|---|---|---|
+| Cash & cash equivalents | BAL_cash_marketable_securities_2024 | 6,889 | — |
+| Receivables — trade & other | BAL_receivables_2024 / _2023 | 9,282 | 9,310 |
+| Inventories | BAL_inventories_2024 / _2023 | 16,827 | 16,565 |
+| Total current assets | BAL_assets_current_2024 | 45,682 | — |
+| Total assets | BAL_assets_total_2024 / _2023 | 87,764 | 87,476 |
+| Total current liabilities | BAL_liabilities_current_2024 | 32,272 | — |
+| Total liabilities | BAL_liabilities_total_2024 | 68,270 | — |
+| Long-term debt (after 1 yr) | BAL_debt_long_term_2024 / _2023 | 27,351 | 24,472 |
+| Total shareholders' equity | BAL_equity_shareholders_2024 / _2023 | 19,494 | 19,503 |
+
+### Income Statement
+
+| Source / Item | Named Range | FY2024 ($M) |
+|---|---|---|
+| Net sales | INC_sales | 64,809 |
+| Cost of goods sold | INC_cost_goods_sold | 43,244 |
+| EBIT | INC_ebit | 14,187 |
+| Interest expense | INC_interest_expense | 1,713 |
+| Depreciation | INC_depreciation | 1,413 |
+| Net income | INC_net | 11,646 |
+
+### Cash Flow Statement
+
+| Source / Item | Named Range | FY2024 ($M) |
+|---|---|---|
+| Cash from operations | CASH_operating | 14,184 |
+| Capital expenditures | CASH_capex | (1,702) |
+
+### Market / Analyst Inputs
+
+| Source / Item | Named Range | Value |
+|---|---|---|
+| Share price (fiscal year-end) | share_price | $349.58 |
+| Shares outstanding | shares_outstanding | 492M |
+| Cost of capital (WACC) | cost_capital | 7.90% |
+| Tax rate (assumed) | tax_rate | 21.40% |
+
+---
+
+## 3. Named Range Conventions
+
+- **Raw inputs:** `SOURCE_description_year` (e.g., `BAL_cash_marketable_securities_2024`, `INC_sales`, `CASH_operating`)
+- **Du Pont cross-reference outputs:** `RATIO_asset_turnover`, `RATIO_operating_profit_margin`, `RATIO_debt_burden`, `RATIO_leverage`
+- **Derived intermediates:** `startYear_`, `currentYear_`, and `avg_` prefixes
+
+All named ranges are defined in the Excel Name Manager; no bare cell references appear in the Ratios tab.
+
+---
+
+## 4. Assumptions & Constraints
+
+- Tax rate assumed at statutory 21.4%; not derived from `INC_taxes / INC_taxable_income`
+- Interest expense on simple annual basis; no sub-period compounding
+- No off-balance-sheet items included; operating leases and pension obligations not capitalized
+- Total capitalization = long-term debt (after 1 yr) + shareholders' equity — excludes short-term debt ($4.4B) and current LTD ($6.7B)
+- Quick ratio uses trade receivables only; Cat Financial finance receivables ($9.6B) excluded
+- WACC of 7.9% is an analyst estimate with no formal CAPM build-up
+- Share price ($349.58) reflects fiscal year-end close; market cap = `share_price × shares_outstanding`, no diluted adjustment
+- Average balances = simple average of FY2023 and FY2024 period-end figures
+
+---
+
+## 5. Calculation Flow
+
+### Derived Inputs
+
+```
+market_cap                   = share_price × shares_outstanding
+startYear_equity             = BAL_equity_shareholders_2023
+startYear_total_assets       = BAL_assets_total_2023
+startYear_total_cap          = BAL_debt_long_term_2023 + BAL_equity_shareholders_2023
+startYear_inventory          = BAL_inventories_2023
+startYear_receivables        = BAL_receivables_2023
+currentYear_after_tax_op_inc = INC_net + (1 − tax_rate) × INC_interest_expense
+currentYear_daily_sales      = INC_sales / 365
+currentYear_daily_cogs       = INC_cost_goods_sold / 365
+currentYear_nwc              = BAL_assets_current_2024 − BAL_liabilities_current_2024
+currentYear_total_cap        = BAL_debt_long_term_2024 + BAL_equity_shareholders_2024
+avg_equity                   = AVERAGE(startYear_equity, BAL_equity_shareholders_2024)
+avg_total_assets             = AVERAGE(startYear_total_assets, BAL_assets_total_2024)
+avg_total_cap                = AVERAGE(startYear_total_cap, currentYear_total_cap)
+```
+
+### Performance
+
+```
+MVA = market_cap − BAL_equity_shareholders_2024
+M/B = market_cap / BAL_equity_shareholders_2024
+EVA = currentYear_after_tax_op_inc − (cost_capital × startYear_total_cap)
+```
+
+### Profitability (start-of-year and average-based)
+
+```
+ROA = currentYear_after_tax_op_inc / startYear_total_assets   [avg: / avg_total_assets]
+ROC = currentYear_after_tax_op_inc / startYear_total_cap      [avg: / avg_total_cap]
+ROE = INC_net / startYear_equity                              [avg: / avg_equity]
+```
+
+### Efficiency
+
+```
+RATIO_asset_turnover          = INC_sales / startYear_total_assets
+Receivables turnover          = INC_sales / startYear_receivables
+Avg collection period (days)  = startYear_receivables / currentYear_daily_sales
+Inventory turnover            = INC_cost_goods_sold / startYear_inventory
+Days in inventory             = startYear_inventory / currentYear_daily_cogs
+Profit margin                 = INC_net / INC_sales
+RATIO_operating_profit_margin = currentYear_after_tax_op_inc / INC_sales
+```
+
+### Leverage
+
+```
+LT debt ratio         = BAL_debt_long_term_2024 / currentYear_total_cap
+LT debt-equity ratio  = BAL_debt_long_term_2024 / BAL_equity_shareholders_2024
+Total debt ratio      = BAL_liabilities_total_2024 / BAL_assets_total_2024
+Times interest earned = INC_ebit / INC_interest_expense
+Cash coverage ratio   = (INC_ebit + INC_depreciation) / INC_interest_expense
+RATIO_debt_burden     = INC_net / currentYear_after_tax_op_inc
+RATIO_leverage        = BAL_assets_total_2024 / BAL_equity_shareholders_2024
+```
+
+### Liquidity
+
+```
+NWC to assets = currentYear_nwc / BAL_assets_total_2024
+Current ratio = BAL_assets_current_2024 / BAL_liabilities_current_2024
+Quick ratio   = (BAL_cash_marketable_securities_2024 + BAL_receivables_2024)
+                / BAL_liabilities_current_2024
+Cash ratio    = BAL_cash_marketable_securities_2024 / BAL_liabilities_current_2024
+```
+
+### Du Pont
+
+```
+ROA (Du Pont) = RATIO_asset_turnover × RATIO_operating_profit_margin
+ROE (Du Pont) = RATIO_leverage × RATIO_asset_turnover
+                × RATIO_operating_profit_margin × RATIO_debt_burden
+```
+
+---
+
+## 6. Outputs
+
+- **Scalar inputs table:** All derived intermediates and averages labeled with named ranges and values
+- **Ratio output table:** 30 ratios in six categories with named-range formula references and numeric results
+- **Du Pont tree:** Decomposition confirming ROA and ROE via `RATIO_*` cross-references to source sections
+- **Balance check:** Total Assets = Total Liabilities + Equity verified for FY2024 ($87,764M) and FY2023 ($87,476M)
+- **Notes tab:** Assumptions log, data source citation, color-coding legend, and full record of Stage 2 formula corrections
+
+---
+
+## 7. Model Review
+
+### What Was Built Correctly
+
+The named-range architecture is the model's strongest feature — every input is descriptively named, the Du Pont section cross-references `RATIO_*` ranges rather than bare cell addresses, and the Notes tab logs every formula correction with a plain-language explanation. Balance sheet checks pass for both years. Start-of-year vs. average-based profitability variants are consistently maintained.
+
+### What to Improve
+
+- Quick ratio excludes Cat Financial finance receivables ($9.6B) without an inline cell note — embed documentation directly
+- Total capitalization omits short-term debt ($4.4B) and current LTD ($6.7B); label the metric explicitly or include all debt
+- Tax rate should be derived as `INC_taxes / INC_taxable_income` rather than manually assumed at 21.4%
+- WACC has no build-up; add a sensitivity table (6%–10%) to stress-test EVA for a CFO audience
+- Layout: freeze panes at category headers, add conditional formatting for out-of-norm ratios, group rows by category
+- Add free cash flow (`CASH_operating − CASH_capex = $12,482M`) to contextualize the $7.8B share repurchase
+
+---
+
+## 8. Limitations & Next Steps
+
+**Excluded:** Multi-year trend analysis, peer benchmarking (Deere & Co., CNH Industrial), Cat Financial segment-level adjustments, off-balance-sheet capitalization (operating leases, pension), and scenario/sensitivity analysis.
+
+**Stage 4 setup:** Section 5's Calculation Flow becomes the AI prompt instruction block. Section 7's Model Review directs the AI to flag the four assumptions most requiring commentary: WACC sensitivity, capitalization scope, quick ratio composition, and tax rate derivation. Section 6's Outputs define the ratio table the AI will interpret to produce a CFO- and investor-facing narrative on CAT's value creation, operational efficiency, capital structure risk, and liquidity position.
+
+---
+
+*Data source: Caterpillar Inc., 10-K FY2024, SEC EDGAR. All figures in millions of USD unless noted. Model built in Microsoft Excel with named-range conventions.*
